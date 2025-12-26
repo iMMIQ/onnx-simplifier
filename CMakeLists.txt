@@ -69,6 +69,14 @@ if (EMSCRIPTEN)
   endif()
 endif()
 
+# FFI library for other language bindings
+add_library(onnxsim_ffi SHARED onnxsim/onnxsim_ffi.cc)
+target_link_libraries(onnxsim_ffi PRIVATE onnxsim)
+target_include_directories(onnxsim_ffi PUBLIC onnxsim)
+if (WIN32)
+  set_target_properties(onnxsim_ffi PROPERTIES OUTPUT_NAME "onnxsim_ffi" PREFIX "")
+endif()
+
 if (ONNXSIM_PYTHON)
   add_subdirectory(third_party/pybind11)
   pybind11_add_module(onnxsim_cpp2py_export onnxsim/cpp2py_export.cc)

@@ -1,0 +1,16 @@
+[package]
+name = "onnxsim"
+version = "0.1.0"
+edition = "2021"
+links = "onnxsim_ffi"
+
+[lib]
+name = "onnxsim"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+thiserror = "2.0.17"
+
+[build-dependencies]
+bindgen = "0.72.1"
