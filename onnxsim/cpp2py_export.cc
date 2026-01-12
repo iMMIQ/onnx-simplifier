@@ -60,6 +60,24 @@ struct PyModelExecutorTrampoline : public PyModelExecutor {
 PYBIND11_MODULE(onnxsim_cpp2py_export, m) {
   m.doc() = "ONNX Simplifier";
 
+  // Bind FoldedOp structure
+  py::class_<FoldedOp>(m, "FoldedOp")
+      .def(py::init<>())
+      .def_readwrite("op_type", &FoldedOp::op_type)
+      .def_readwrite("op_name", &FoldedOp::op_name)
+      .def_readwrite("inputs", &FoldedOp::inputs)
+      .def_readwrite("outputs", &FoldedOp::outputs)
+      .def_readwrite("success", &FoldedOp::success)
+      .def_readwrite("error_msg", &FoldedOp::error_msg);
+
+  // Bind FoldingRecord structure
+  py::class_<FoldingRecord>(m, "FoldingRecord")
+      .def(py::init<>())
+      .def_readwrite("folded_ops", &FoldingRecord::folded_ops)
+      .def_readwrite("total_attempted", &FoldingRecord::total_attempted)
+      .def_readwrite("total_succeeded", &FoldingRecord::total_succeeded)
+      .def_readwrite("total_failed", &FoldingRecord::total_failed);
+
   m.def("simplify",
         [](const py::bytes& model_proto_bytes,
            std::optional<std::vector<std::string>> skip_optimizers,
@@ -89,7 +107,11 @@ PYBIND11_MODULE(onnxsim_cpp2py_export, m) {
       .def("_set_model_executor",
            [](std::shared_ptr<PyModelExecutor> executor) {
              ModelExecutor::set_instance(std::move(executor));
-           });
+           })
+      .def("get_folding_record", &GetFoldingRecord,
+           "Get the global folding record")
+      .def("clear_folding_record", &ClearFoldingRecord,
+           "Clear the global folding record");
 
   py::class_<PyModelExecutor, PyModelExecutorTrampoline,
              std::shared_ptr<PyModelExecutor>>(m, "ModelExecutor")

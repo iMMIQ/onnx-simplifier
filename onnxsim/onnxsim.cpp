@@ -27,6 +27,9 @@ Config config;
 
 std::shared_ptr<const ModelExecutor> ModelExecutor::instance_ = nullptr;
 
+// Global folding record
+FoldingRecord g_folding_record;
+
 bool IsOfficialOp(const std::string& domain, const std::string& op) {
   if (domain != "ai.onnx" && domain != "ai.onnx.ml" && !domain.empty()) {
     return false;
@@ -417,13 +420,25 @@ onnx::ModelProto _FoldConstant(const onnx::ModelProto& model) {
     model.CopyFrom(tmp);
     auto [const_nodes, non_const_nodes] = GetConstantNodes(model);
     for (const auto& x : const_nodes) {
+      FoldedOp folded_op;
+      folded_op.op_type = x.op_type();
+      folded_op.op_name = x.name();
+      folded_op.inputs.assign(x.input().begin(), x.input().end());
+      folded_op.outputs.assign(x.output().begin(), x.output().end());
+
       try {
         RunOpAndAddInitializer(model, x);
+        folded_op.success = true;
+        folded_op.error_msg = "";
       } catch (const std::exception& e) {
         std::cerr << "WARNING: failed to run \"" << x.op_type() <<
           "\" op (name is \"" << x.name() << "\"), skip..." << std::endl;
+        folded_op.success = false;
+        folded_op.error_msg = e.what();
         non_const_nodes.push_back(x);
       }
+
+      g_folding_record.RecordFold(folded_op);
     }
     model.mutable_graph()->clear_node();
     for (const auto& x : non_const_nodes) {
@@ -486,6 +501,9 @@ onnx::ModelProto Simplify(
     const onnx::ModelProto& model,
     std::optional<std::vector<std::string>> skip_optimizers,
     bool constant_folding, bool shape_inference, size_t tensor_size_threshold) {
+  // Clear previous folding record
+  g_folding_record.Clear();
+
   Check(model);
 
   config.tensor_size_threshold = tensor_size_threshold;
@@ -541,4 +559,12 @@ void SimplifyPath(const std::string& in_path, const std::string& out_path,
                    tensor_size_threshold);
 
   onnx::optimization::saveModel(&model, out_path, true, "");
+}
+
+const FoldingRecord& GetFoldingRecord() {
+  return g_folding_record;
+}
+
+void ClearFoldingRecord() {
+  g_folding_record.Clear();
 }
